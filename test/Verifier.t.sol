@@ -42,21 +42,41 @@ contract VerifierTest is Test {
      * @dev Test: Verify a valid signature using the Verifier contract
      */
     function testVerifierWithValidSignature() public {
-        // Create an arbitrary hash
+        // Generate a keccak256 hash from the message to sign
         bytes32 hash = keccak256(abi.encodePacked("Message to sign"));
 
-        // Sign with 'owner' using the fixed private key
+        // Sign the hash using the owner's private key
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, hash);
 
+        // Combine the signature parts (r, s, v) into a single bytes array
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        // Call Verifier.callIsValidSignature(...)
-        bool isValid = verifier.callIsValidSignature(
-            address(wallet),
-            hash,
-            signature
+        // Perform a static call to the wallet contract's isValidSignature function
+        (bool success, bytes memory returnData) = address(wallet).staticcall(
+            abi.encodeWithSelector(
+                wallet.isValidSignature.selector,
+                hash,
+                signature
+            )
         );
-        assertTrue(isValid, "The signature should be valid");
+
+        // Log debugging information for the hash, signature, call success, and return data
+        emit log_named_bytes32("Hash", hash);
+        emit log_named_bytes("Signature", signature);
+        emit log_named_string("Success", success ? "true" : "false");
+        emit log_named_bytes("Return Data", returnData);
+
+        // Ensure the call did not revert
+        assertTrue(success, "The call to isValidSignature failed");
+
+        // Decode the returned bytes into bytes4 and compare it to the expected magic value.
+        // Since there's no assert for bytes4, we convert to uint32 for comparison.
+        bytes4 result = abi.decode(returnData, (bytes4));
+        assertEq(
+            uint32(result),
+            uint32(0x1626ba7e),
+            "isValidSignature did not return the expected magic value"
+        );
     }
 
     /**
