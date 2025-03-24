@@ -80,6 +80,28 @@ contract VerifierTest is Test {
     }
 
     /**
+     * @dev Test: Verify an invalid signature (signed by a different account) (Another message)
+     */
+    function testVerifierWithInvalidSignatureAnothermessage() public {
+        bytes32 hash = keccak256(abi.encodePacked("Another message"));
+
+        // Use a different private key for notOwner
+        uint256 notOwnerPrivateKey = 2;
+        address notOwner = vm.addr(notOwnerPrivateKey);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(notOwnerPrivateKey, hash);
+
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // We expect it to be false (invalid signature)
+        bool isValid = verifier.callIsValidSignature(
+            address(wallet),
+            hash,
+            signature
+        );
+        assertFalse(isValid, "The signature should be invalid");
+    }
+
+    /**
      * @dev Test: Verify an invalid signature (signed by a different account)
      */
     function testVerifierWithInvalidSignature() public {
